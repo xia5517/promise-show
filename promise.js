@@ -3,6 +3,7 @@ const RESOLVED = 'RESOLVED'
 const REJECTED = 'REJECTED'
 
 resolvePromise = (p2, x, resolve, reject) => {
+    // 避免爸爸的儿子是爸爸 循环引用
     if (p2 === x) {
         reject(new TypeError('Circular reference'))
     }
@@ -49,6 +50,7 @@ class Promise {
         this.onRejectedCallbacks = []
 
         const resolve = value => {
+            // resolve（value），当value是个promise，要value.then(data => resolve(data))继续执行promise的值
             if (value instanceof Promise) {
                 return value.then(data => resolve(data), e =>  reject(e))
             }
@@ -104,10 +106,14 @@ class Promise {
             }
 
             if (this.status === PENDING) {
+                // x = p.then(f1); y = p.then(f2); onFulfilledCallbacks(f1, f2); 在状态判定前排好onFullfilled队列 此时是【f1, f2 ...】
+                // x = p.then(f1); y = x.then(f2); p: onFulfilledCallbacks(f1), x: onFulfilledCallbacks(f2), 此时是 f1 -> f2 链式存储
                 this.onFulfilledCallbacks.push(() => {
                     setTimeout(() => {
                         try {
                             const x = onFullfilled(this.value)
+                            
+                            // 当 x 还是个primose，要继续执行。
                             resolvePromise(p2, x, resolve, reject)
                         } catch (e) {
                             reject(e)
